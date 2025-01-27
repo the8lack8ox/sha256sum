@@ -36,8 +36,8 @@ impl Sha256Hasher {
     pub fn new() -> Self {
         Self {
             hash: [
-                0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 0x510E527F,
-                0x9B05688C, 0x1F83D9AB, 0x5BE0CD19,
+                0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 0x510E527F, 0x9B05688C, 0x1F83D9AB,
+                0x5BE0CD19,
             ],
             buffer: Vec::new(),
             length: 0,
@@ -47,19 +47,16 @@ impl Sha256Hasher {
 
     fn slow_update(&mut self, buf: &[u8]) {
         const K: [u32; 64] = [
-            0x428A2F98, 0x71374491, 0xB5C0FBCF, 0xE9B5DBA5, 0x3956C25B,
-            0x59F111F1, 0x923F82A4, 0xAB1C5ED5, 0xD807AA98, 0x12835B01,
-            0x243185BE, 0x550C7DC3, 0x72BE5D74, 0x80DEB1FE, 0x9BDC06A7,
-            0xC19BF174, 0xE49B69C1, 0xEFBE4786, 0x0FC19DC6, 0x240CA1CC,
-            0x2DE92C6F, 0x4A7484AA, 0x5CB0A9DC, 0x76F988DA, 0x983E5152,
-            0xA831C66D, 0xB00327C8, 0xBF597FC7, 0xC6E00BF3, 0xD5A79147,
-            0x06CA6351, 0x14292967, 0x27B70A85, 0x2E1B2138, 0x4D2C6DFC,
-            0x53380D13, 0x650A7354, 0x766A0ABB, 0x81C2C92E, 0x92722C85,
-            0xA2BFE8A1, 0xA81A664B, 0xC24B8B70, 0xC76C51A3, 0xD192E819,
-            0xD6990624, 0xF40E3585, 0x106AA070, 0x19A4C116, 0x1E376C08,
-            0x2748774C, 0x34B0BCB5, 0x391C0CB3, 0x4ED8AA4A, 0x5B9CCA4F,
-            0x682E6FF3, 0x748F82EE, 0x78A5636F, 0x84C87814, 0x8CC70208,
-            0x90BEFFFA, 0xA4506CEB, 0xBEF9A3F7, 0xC67178F2,
+            0x428A2F98, 0x71374491, 0xB5C0FBCF, 0xE9B5DBA5, 0x3956C25B, 0x59F111F1, 0x923F82A4,
+            0xAB1C5ED5, 0xD807AA98, 0x12835B01, 0x243185BE, 0x550C7DC3, 0x72BE5D74, 0x80DEB1FE,
+            0x9BDC06A7, 0xC19BF174, 0xE49B69C1, 0xEFBE4786, 0x0FC19DC6, 0x240CA1CC, 0x2DE92C6F,
+            0x4A7484AA, 0x5CB0A9DC, 0x76F988DA, 0x983E5152, 0xA831C66D, 0xB00327C8, 0xBF597FC7,
+            0xC6E00BF3, 0xD5A79147, 0x06CA6351, 0x14292967, 0x27B70A85, 0x2E1B2138, 0x4D2C6DFC,
+            0x53380D13, 0x650A7354, 0x766A0ABB, 0x81C2C92E, 0x92722C85, 0xA2BFE8A1, 0xA81A664B,
+            0xC24B8B70, 0xC76C51A3, 0xD192E819, 0xD6990624, 0xF40E3585, 0x106AA070, 0x19A4C116,
+            0x1E376C08, 0x2748774C, 0x34B0BCB5, 0x391C0CB3, 0x4ED8AA4A, 0x5B9CCA4F, 0x682E6FF3,
+            0x748F82EE, 0x78A5636F, 0x84C87814, 0x8CC70208, 0x90BEFFFA, 0xA4506CEB, 0xBEF9A3F7,
+            0xC67178F2,
         ];
 
         self.length += buf.len();
@@ -75,12 +72,8 @@ impl Sha256Hasher {
                 ));
             }
             for i in 16..64 {
-                let s0 = w[i - 15].rotate_right(7)
-                    ^ w[i - 15].rotate_right(18)
-                    ^ w[i - 15].shr(3);
-                let s1 = w[i - 2].rotate_right(17)
-                    ^ w[i - 2].rotate_right(19)
-                    ^ w[i - 2].shr(10);
+                let s0 = w[i - 15].rotate_right(7) ^ w[i - 15].rotate_right(18) ^ w[i - 15].shr(3);
+                let s1 = w[i - 2].rotate_right(17) ^ w[i - 2].rotate_right(19) ^ w[i - 2].shr(10);
                 w.push(
                     w[i - 16]
                         .wrapping_add(s0)
@@ -99,16 +92,14 @@ impl Sha256Hasher {
             let mut h = self.hash[7];
 
             for i in 0..64 {
-                let s1 =
-                    e.rotate_right(6) ^ e.rotate_right(11) ^ e.rotate_right(25);
+                let s1 = e.rotate_right(6) ^ e.rotate_right(11) ^ e.rotate_right(25);
                 let ch = (e & f) ^ ((!e) & g);
                 let tmp1 = h
                     .wrapping_add(s1)
                     .wrapping_add(ch)
                     .wrapping_add(K[i])
                     .wrapping_add(w[i]);
-                let s0 =
-                    a.rotate_right(2) ^ a.rotate_right(13) ^ a.rotate_right(22);
+                let s0 = a.rotate_right(2) ^ a.rotate_right(13) ^ a.rotate_right(22);
                 let maj = (a & b) ^ (a & c) ^ (b & c);
                 let tmp2 = s0.wrapping_add(maj);
 
@@ -163,10 +154,7 @@ impl Sha256Hasher {
             // Rounds 0 ~ 3
             let mut msg = _mm_loadu_si128(chunk[0..16].as_ptr() as *const _);
             let mut msg0 = _mm_shuffle_epi8(msg, mask);
-            msg = _mm_add_epi32(
-                msg0,
-                _mm_set_epi64x(0xE9B5DBA5B5C0FBCF, 0x71374491428A2F98),
-            );
+            msg = _mm_add_epi32(msg0, _mm_set_epi64x(0xE9B5DBA5B5C0FBCF, 0x71374491428A2F98));
             state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
             msg = _mm_shuffle_epi32(msg, 0x0E);
             state0 = _mm_sha256rnds2_epu32(state0, state1, msg);
@@ -174,10 +162,7 @@ impl Sha256Hasher {
             // Rounds 4 ~ 7
             let mut msg1 = _mm_loadu_si128(chunk[16..32].as_ptr() as *const _);
             msg1 = _mm_shuffle_epi8(msg1, mask);
-            msg = _mm_add_epi32(
-                msg1,
-                _mm_set_epi64x(0xAB1C5ED5923F82A4, 0x59F111F13956C25B),
-            );
+            msg = _mm_add_epi32(msg1, _mm_set_epi64x(0xAB1C5ED5923F82A4, 0x59F111F13956C25B));
             state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
             msg = _mm_shuffle_epi32(msg, 0x0E);
             state0 = _mm_sha256rnds2_epu32(state0, state1, msg);
@@ -186,10 +171,7 @@ impl Sha256Hasher {
             // Rounds 8 ~ 11
             let mut msg2 = _mm_loadu_si128(chunk[32..48].as_ptr() as *const _);
             msg2 = _mm_shuffle_epi8(msg2, mask);
-            msg = _mm_add_epi32(
-                msg2,
-                _mm_set_epi64x(0x550C7DC3243185BE, 0x12835B01D807AA98),
-            );
+            msg = _mm_add_epi32(msg2, _mm_set_epi64x(0x550C7DC3243185BE, 0x12835B01D807AA98));
             state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
             msg = _mm_shuffle_epi32(msg, 0x0E);
             state0 = _mm_sha256rnds2_epu32(state0, state1, msg);
@@ -198,10 +180,7 @@ impl Sha256Hasher {
             // Rounds 12 ~ 15
             let mut msg3 = _mm_loadu_si128(chunk[48..64].as_ptr() as *const _);
             msg3 = _mm_shuffle_epi8(msg3, mask);
-            msg = _mm_add_epi32(
-                msg3,
-                _mm_set_epi64x(0xC19BF1749BDC06A7, 0x80DEB1FE72BE5D74),
-            );
+            msg = _mm_add_epi32(msg3, _mm_set_epi64x(0xC19BF1749BDC06A7, 0x80DEB1FE72BE5D74));
             state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
             tmp = _mm_alignr_epi8(msg3, msg2, 4);
             msg0 = _mm_add_epi32(msg0, tmp);
@@ -211,10 +190,7 @@ impl Sha256Hasher {
             msg2 = _mm_sha256msg1_epu32(msg2, msg3);
 
             // Rounds 16 ~ 19
-            msg = _mm_add_epi32(
-                msg0,
-                _mm_set_epi64x(0x240CA1CC0FC19DC6, 0xEFBE4786E49B69C1),
-            );
+            msg = _mm_add_epi32(msg0, _mm_set_epi64x(0x240CA1CC0FC19DC6, 0xEFBE4786E49B69C1));
             state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
             tmp = _mm_alignr_epi8(msg0, msg3, 4);
             msg1 = _mm_add_epi32(msg1, tmp);
@@ -224,10 +200,7 @@ impl Sha256Hasher {
             msg3 = _mm_sha256msg1_epu32(msg3, msg0);
 
             // Rounds 20 ~ 23
-            msg = _mm_add_epi32(
-                msg1,
-                _mm_set_epi64x(0x76F988DA5CB0A9DC, 0x4A7484AA2DE92C6F),
-            );
+            msg = _mm_add_epi32(msg1, _mm_set_epi64x(0x76F988DA5CB0A9DC, 0x4A7484AA2DE92C6F));
             state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
             tmp = _mm_alignr_epi8(msg1, msg0, 4);
             msg2 = _mm_add_epi32(msg2, tmp);
@@ -237,10 +210,7 @@ impl Sha256Hasher {
             msg0 = _mm_sha256msg1_epu32(msg0, msg1);
 
             // Rounds 24 ~ 27
-            msg = _mm_add_epi32(
-                msg2,
-                _mm_set_epi64x(0xBF597FC7B00327C8, 0xA831C66D983E5152),
-            );
+            msg = _mm_add_epi32(msg2, _mm_set_epi64x(0xBF597FC7B00327C8, 0xA831C66D983E5152));
             state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
             tmp = _mm_alignr_epi8(msg2, msg1, 4);
             msg3 = _mm_add_epi32(msg3, tmp);
@@ -250,10 +220,7 @@ impl Sha256Hasher {
             msg1 = _mm_sha256msg1_epu32(msg1, msg2);
 
             // Rounds 28 ~ 31
-            msg = _mm_add_epi32(
-                msg3,
-                _mm_set_epi64x(0x1429296706CA6351, 0xD5A79147C6E00BF3),
-            );
+            msg = _mm_add_epi32(msg3, _mm_set_epi64x(0x1429296706CA6351, 0xD5A79147C6E00BF3));
             state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
             tmp = _mm_alignr_epi8(msg3, msg2, 4);
             msg0 = _mm_add_epi32(msg0, tmp);
@@ -263,10 +230,7 @@ impl Sha256Hasher {
             msg2 = _mm_sha256msg1_epu32(msg2, msg3);
 
             // Rounds 32 ~ 35
-            msg = _mm_add_epi32(
-                msg0,
-                _mm_set_epi64x(0x53380D134D2C6DFC, 0x2E1B213827B70A85),
-            );
+            msg = _mm_add_epi32(msg0, _mm_set_epi64x(0x53380D134D2C6DFC, 0x2E1B213827B70A85));
             state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
             tmp = _mm_alignr_epi8(msg0, msg3, 4);
             msg1 = _mm_add_epi32(msg1, tmp);
@@ -276,10 +240,7 @@ impl Sha256Hasher {
             msg3 = _mm_sha256msg1_epu32(msg3, msg0);
 
             // Rounds 36 ~ 39
-            msg = _mm_add_epi32(
-                msg1,
-                _mm_set_epi64x(0x92722C8581C2C92E, 0x766A0ABB650A7354),
-            );
+            msg = _mm_add_epi32(msg1, _mm_set_epi64x(0x92722C8581C2C92E, 0x766A0ABB650A7354));
             state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
             tmp = _mm_alignr_epi8(msg1, msg0, 4);
             msg2 = _mm_add_epi32(msg2, tmp);
@@ -289,10 +250,7 @@ impl Sha256Hasher {
             msg0 = _mm_sha256msg1_epu32(msg0, msg1);
 
             // Rounds 40 ~ 43
-            msg = _mm_add_epi32(
-                msg2,
-                _mm_set_epi64x(0xC76C51A3C24B8B70, 0xA81A664BA2BFE8A1),
-            );
+            msg = _mm_add_epi32(msg2, _mm_set_epi64x(0xC76C51A3C24B8B70, 0xA81A664BA2BFE8A1));
             state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
             tmp = _mm_alignr_epi8(msg2, msg1, 4);
             msg3 = _mm_add_epi32(msg3, tmp);
@@ -302,10 +260,7 @@ impl Sha256Hasher {
             msg1 = _mm_sha256msg1_epu32(msg1, msg2);
 
             // Rounds 44 ~ 47
-            msg = _mm_add_epi32(
-                msg3,
-                _mm_set_epi64x(0x106AA070F40E3585, 0xD6990624D192E819),
-            );
+            msg = _mm_add_epi32(msg3, _mm_set_epi64x(0x106AA070F40E3585, 0xD6990624D192E819));
             state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
             tmp = _mm_alignr_epi8(msg3, msg2, 4);
             msg0 = _mm_add_epi32(msg0, tmp);
@@ -315,10 +270,7 @@ impl Sha256Hasher {
             msg2 = _mm_sha256msg1_epu32(msg2, msg3);
 
             // Rounds 48 ~ 51
-            msg = _mm_add_epi32(
-                msg0,
-                _mm_set_epi64x(0x34B0BCB52748774C, 0x1E376C0819A4C116),
-            );
+            msg = _mm_add_epi32(msg0, _mm_set_epi64x(0x34B0BCB52748774C, 0x1E376C0819A4C116));
             state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
             tmp = _mm_alignr_epi8(msg0, msg3, 4);
             msg1 = _mm_add_epi32(msg1, tmp);
@@ -328,10 +280,7 @@ impl Sha256Hasher {
             msg3 = _mm_sha256msg1_epu32(msg3, msg0);
 
             // Rounds 52 ~ 55
-            msg = _mm_add_epi32(
-                msg1,
-                _mm_set_epi64x(0x682E6FF35B9CCA4F, 0x4ED8AA4A391C0CB3),
-            );
+            msg = _mm_add_epi32(msg1, _mm_set_epi64x(0x682E6FF35B9CCA4F, 0x4ED8AA4A391C0CB3));
             state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
             tmp = _mm_alignr_epi8(msg1, msg0, 4);
             msg2 = _mm_add_epi32(msg2, tmp);
@@ -340,10 +289,7 @@ impl Sha256Hasher {
             state0 = _mm_sha256rnds2_epu32(state0, state1, msg);
 
             // Rounds 56 ~ 59
-            msg = _mm_add_epi32(
-                msg2,
-                _mm_set_epi64x(0x8CC7020884C87814, 0x78A5636F748F82EE),
-            );
+            msg = _mm_add_epi32(msg2, _mm_set_epi64x(0x8CC7020884C87814, 0x78A5636F748F82EE));
             state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
             tmp = _mm_alignr_epi8(msg2, msg1, 4);
             msg3 = _mm_add_epi32(msg3, tmp);
@@ -352,10 +298,7 @@ impl Sha256Hasher {
             state0 = _mm_sha256rnds2_epu32(state0, state1, msg);
 
             // Rounds 60 ~ 63
-            msg = _mm_add_epi32(
-                msg3,
-                _mm_set_epi64x(0xC67178F2BEF9A3F7, 0xA4506CEB90BEFFFA),
-            );
+            msg = _mm_add_epi32(msg3, _mm_set_epi64x(0xC67178F2BEF9A3F7, 0xA4506CEB90BEFFFA));
             state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
             msg = _mm_shuffle_epi32(msg, 0x0E);
             state0 = _mm_sha256rnds2_epu32(state0, state1, msg);
