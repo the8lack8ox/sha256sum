@@ -24,6 +24,7 @@ use std::env;
 use std::fs::File;
 use std::io::{Read, Result};
 use std::ops::Shr;
+use std::process::ExitCode;
 
 struct Sha256 {
     hash: [u32; 8],
@@ -443,12 +444,12 @@ fn run() -> Result<()> {
     Ok(())
 }
 
-fn main() {
+fn main() -> ExitCode {
     match run() {
-        Ok(()) => (),
+        Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
             eprintln!("ERROR: {err}");
-            std::process::exit(1);
+            ExitCode::FAILURE
         }
     }
 }
