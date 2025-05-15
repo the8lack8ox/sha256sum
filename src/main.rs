@@ -20,16 +20,18 @@
 // IN THE SOFTWARE.
 //
 
-use std::env;
+use std::collections::VecDeque;
 use std::fs::File;
-use std::io::{Read, Result};
+use std::io::{ErrorKind, Read, Result};
 use std::ops::Shr;
 use std::process::ExitCode;
+use std::{env, fmt};
 
 struct Sha256 {
     hash: [u32; 8],
-    buffer: Vec<u8>,
     length: usize,
+    remainder: [u8; 64],
+    remainder_len: usize,
     finished: bool,
 }
 
@@ -40,8 +42,9 @@ impl Sha256 {
                 0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 0x510E527F, 0x9B05688C, 0x1F83D9AB,
                 0x5BE0CD19,
             ],
-            buffer: Vec::new(),
             length: 0,
+            remainder: [0; 64],
+            remainder_len: 0,
             finished: false,
         }
     }
@@ -61,16 +64,38 @@ impl Sha256 {
         ];
 
         self.length += buf.len();
-        self.buffer.extend_from_slice(buf);
 
-        let chunks = self.buffer.chunks_exact(64);
-        let remainder_tmp = chunks.remainder();
-        for chunk in chunks {
+        let mut slices = Vec::with_capacity((self.remainder.len() + buf.len()) / 64);
+        if self.remainder_len == 0 {
+            for i in 0..(buf.len() / 64) {
+                slices.push(&buf[(i * 64)..((i + 1) * 64)]);
+            }
+        } else if self.remainder_len + buf.len() >= 64 {
+            self.remainder[self.remainder_len..].copy_from_slice(&buf[..(64 - self.remainder_len)]);
+            slices.push(&self.remainder);
+            for i in 1..(buf.len() / 64) {
+                slices.push(
+                    buf[(i * 64 - self.remainder_len)..((i + 1) * 64 - self.remainder_len)]
+                        .try_into()
+                        .unwrap(),
+                );
+            }
+        } else {
+            self.remainder[self.remainder_len..(self.remainder_len + buf.len())]
+                .copy_from_slice(buf);
+            self.remainder_len += buf.len();
+            return;
+        }
+
+        for chunk in slices {
             let mut w = Vec::with_capacity(64);
             for i in 0..16 {
-                w.push(u32::from_be_bytes(
-                    chunk[i * 4..i * 4 + 4].try_into().unwrap(),
-                ));
+                w.push(
+                    (chunk[i * 4] as u32) << 24
+                        | (chunk[i * 4 + 1] as u32) << 16
+                        | (chunk[i * 4 + 2] as u32) << 8
+                        | (chunk[i * 4 + 3] as u32),
+                )
             }
             for i in 16..64 {
                 let s0 = w[i - 15].rotate_right(7) ^ w[i - 15].rotate_right(18) ^ w[i - 15].shr(3);
@@ -124,17 +149,40 @@ impl Sha256 {
             self.hash[7] = self.hash[7].wrapping_add(h);
         }
 
-        self.buffer = Vec::from(remainder_tmp);
+        self.remainder_len = buf.len() % 64;
+        self.remainder[..self.remainder_len]
+            .copy_from_slice(&buf[(buf.len() - self.remainder_len)..]);
     }
 
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
     #[target_feature(enable = "sha")]
     #[allow(overflowing_literals)]
     unsafe fn intrinsic_update(&mut self, buf: &[u8]) {
         use std::arch::x86_64::*;
 
         self.length += buf.len();
-        self.buffer.extend_from_slice(buf);
+
+        let mut slices = Vec::with_capacity((self.remainder.len() + buf.len()) / 64);
+        if self.remainder_len == 0 {
+            for i in 0..(buf.len() / 64) {
+                slices.push(&buf[(i * 64)..((i + 1) * 64)]);
+            }
+        } else if self.remainder_len + buf.len() >= 64 {
+            self.remainder[self.remainder_len..].copy_from_slice(&buf[..(64 - self.remainder_len)]);
+            slices.push(&self.remainder);
+            for i in 1..(buf.len() / 64) {
+                slices.push(
+                    buf[(i * 64 - self.remainder_len)..((i + 1) * 64 - self.remainder_len)]
+                        .try_into()
+                        .unwrap(),
+                );
+            }
+        } else {
+            self.remainder[self.remainder_len..(self.remainder_len + buf.len())]
+                .copy_from_slice(buf);
+            self.remainder_len += buf.len();
+            return;
+        }
 
         let mask = unsafe { _mm_set_epi64x(0x0C0D0E0F08090A0B, 0x0405060700010203) };
         let mut tmp = unsafe { _mm_loadu_si128(self.hash[0..4].as_ptr() as *const _) };
@@ -145,9 +193,7 @@ impl Sha256 {
         let mut state0 = unsafe { _mm_alignr_epi8(tmp, state1, 8) };
         state1 = unsafe { _mm_blend_epi16(state1, tmp, 0xF0) };
 
-        let chunks = self.buffer.chunks_exact(64);
-        let remainder_tmp = chunks.remainder();
-        for chunk in chunks {
+        for chunk in slices {
             // Save current state
             let abef_save = state0;
             let cdgh_save = state1;
@@ -360,13 +406,15 @@ impl Sha256 {
             _mm_storeu_si128(self.hash[4..8].as_ptr() as *mut _, state1);
         }
 
-        self.buffer = Vec::from(remainder_tmp);
+        self.remainder_len = buf.len() % 64;
+        self.remainder[..self.remainder_len]
+            .copy_from_slice(&buf[(buf.len() - self.remainder_len)..]);
     }
 
     pub fn update(&mut self, buf: &[u8]) {
         assert!(!self.finished);
 
-        #[cfg(target_arch = "x86_64")]
+        #[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
         {
             if is_x86_feature_detected!("sha") {
                 unsafe {
@@ -385,7 +433,7 @@ impl Sha256 {
         const ZEROS: [u8; 64] = [0; 64];
         let mut end = Vec::with_capacity(64);
         end.push(0x80);
-        end.extend_from_slice(&ZEROS[..(120 - ((self.length + 1) % 64)) % 64]);
+        end.extend_from_slice(&ZEROS[..(120 - ((self.length + 1) % 64) % 64)]);
         end.extend_from_slice(&(self.length as u64 * 8).to_be_bytes());
 
         self.update(&end);
@@ -396,10 +444,13 @@ impl Sha256 {
     //     assert!(self.finished);
     //     self.hash
     // }
+}
 
-    pub fn hash_as_string(&self) -> String {
+impl fmt::Display for Sha256 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         assert!(self.finished);
-        format!(
+        write!(
+            f,
             "{:08x}{:08x}{:08x}{:08x}{:08x}{:08x}{:08x}{:08x}",
             self.hash[0],
             self.hash[1],
@@ -413,43 +464,122 @@ impl Sha256 {
     }
 }
 
-fn run() -> Result<()> {
-    let inputs: Vec<_> = env::args().skip(1).collect();
+fn sha256_stream<R: Read>(stream: &mut R) -> Result<Sha256> {
+    let mut sha = Sha256::new();
+    let mut buffer = [0; 8192];
+    let mut count = stream.read(&mut buffer)?;
+    while count > 0 {
+        sha.update(&buffer[..count]);
+        count = stream.read(&mut buffer)?;
+    }
+    sha.finish();
+    Ok(sha)
+}
 
-    if inputs.is_empty() {
-        let mut sha = Sha256::new();
-        let mut buffer = [0; 8192];
-        let mut count = std::io::stdin().read(&mut buffer)?;
-        while count > 0 {
-            sha.update(&buffer[..count]);
-            count = std::io::stdin().read(&mut buffer)?;
-        }
-        sha.finish();
-        println!("{} -", sha.hash_as_string());
-    } else {
-        for input in inputs {
-            let mut sha = Sha256::new();
-            let mut buffer = [0; 8192];
-            let mut file = File::open(&input)?;
-            let mut count = file.read(&mut buffer)?;
-            while count > 0 {
-                sha.update(&buffer[..count]);
-                count = file.read(&mut buffer)?;
+enum Input {
+    File(String),
+    Digest(String),
+}
+
+impl Input {
+    fn process(&self) -> ExitCode {
+        match self {
+            Self::File(p) => {
+                if p != "-" {
+                    match File::open(p) {
+                        Ok(mut f) => match sha256_stream(&mut f) {
+                            Ok(sha) => {
+                                println!("{sha}  {p}");
+                                ExitCode::SUCCESS
+                            }
+                            Err(err) => {
+                                match err.kind() {
+                                    ErrorKind::IsADirectory => eprintln!("{p}: Is a directory"),
+                                    _ => eprintln!("{p}: Unknown error"),
+                                }
+                                ExitCode::FAILURE
+                            }
+                        },
+                        Err(err) => {
+                            match err.kind() {
+                                ErrorKind::NotFound => eprintln!("{p}: No such file or directory"),
+                                _ => eprintln!("{p}: Unknown error"),
+                            }
+                            ExitCode::FAILURE
+                        }
+                    }
+                } else {
+                    match sha256_stream(&mut std::io::stdin()) {
+                        Ok(sha) => {
+                            println!("{sha}  -");
+                            ExitCode::SUCCESS
+                        }
+                        Err(err) => {
+                            match err.kind() {
+                                ErrorKind::IsADirectory => eprintln!("-: Is a directory"),
+                                _ => eprintln!("-: Unknown error"),
+                            }
+                            ExitCode::FAILURE
+                        }
+                    }
+                }
             }
-            sha.finish();
-            println!("{} {input}", sha.hash_as_string());
+            Self::Digest(p) => todo!("Digest files are not yet implemented"),
         }
     }
-
-    Ok(())
 }
 
 fn main() -> ExitCode {
-    match run() {
-        Ok(()) => ExitCode::SUCCESS,
-        Err(err) => {
-            eprintln!("ERROR: {err}");
-            ExitCode::FAILURE
+    // Parse command line
+    let mut args: VecDeque<_> = env::args().skip(1).collect();
+    let mut inputs = Vec::new();
+    while let Some(arg) = args.pop_front() {
+        if arg == "--" {
+            inputs.extend(args.drain(..).map(Input::File));
+        } else if arg.starts_with("--") {
+            if arg == "--check" {
+                if let Some(pos) = args
+                    .iter()
+                    .position(|arg| !arg.starts_with("-") || arg == "-")
+                {
+                    inputs.push(Input::Digest(args.remove(pos).unwrap()));
+                }
+            } else {
+                eprintln!("invalid option -- '{arg}'");
+                return ExitCode::FAILURE;
+            }
+        } else if arg.starts_with("-") && arg != "-" {
+            for c in arg.chars().skip(1) {
+                match c {
+                    'c' => {
+                        if let Some(pos) = args
+                            .iter()
+                            .position(|arg| !arg.starts_with("-") || arg == "-")
+                        {
+                            inputs.push(Input::Digest(args.remove(pos).unwrap()));
+                        }
+                    }
+                    _ => {
+                        eprintln!("invalid option -- '{c}'");
+                        return ExitCode::FAILURE;
+                    }
+                }
+            }
+        } else {
+            inputs.push(Input::File(arg));
         }
     }
+
+    // Run
+    let mut exit_code = ExitCode::SUCCESS;
+    if inputs.is_empty() {
+        exit_code = Input::File("-".to_string()).process();
+    } else {
+        for input in inputs {
+            if input.process() == ExitCode::FAILURE {
+                exit_code = ExitCode::FAILURE;
+            }
+        }
+    }
+    exit_code
 }
